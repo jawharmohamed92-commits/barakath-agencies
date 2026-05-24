@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Barakath — Migrate to SQLite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh;
+           display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .card { background: #1e293b; border-radius: 1rem; padding: 2rem; max-width: 560px; width: 100%;
+             box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+    h1 { font-size: 1.5rem; color: #38bdf8; margin-bottom: 0.5rem; }
+    p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.6; }
+    .step { background: #0f172a; border-radius: 0.5rem; padding: 1rem 1.25rem;
+             margin-bottom: 1rem; border-left: 3px solid #334155; }
+    .step.active { border-left-color: #38bdf8; }
+    .step.done   { border-left-color: #22c55e; }
+    .step.error  { border-left-color: #ef4444; }
+    .step-title { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; }
+    .step-msg   { font-size: 0.8rem; color: #94a3b8; margin-top: 0.4rem; }
+    .icon { font-size: 1.1rem; }
+    button { background: #38bdf8; color: #0f172a; border: none; border-radius: 0.5rem;
+              padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 700; cursor: pointer;
+              width: 100%; margin-top: 0.5rem; transition: background 0.2s; }
+    button:hover { background: #7dd3fc; }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .counts { font-size: 0.8rem; color: #22c55e; margin-top: 0.4rem; font-family: monospace; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🗄️ Migrate to SQLite</h1>
+  <p>This tool copies all your existing data from the browser (IndexedDB) into your new SQLite database. Run this <strong>once</strong>, then use the main app normally.</p>
+
+  <div class="step" id="s1">
+    <div class="step-title"><span class="icon">1️⃣</span> Read data from IndexedDB</div>
+    <div class="step-msg" id="s1-msg">Waiting…</div>
+    <div class="counts" id="s1-counts"></div>
+  </div>
+  <div class="step" id="s2">
+    <div class="step-title"><span class="icon">2️⃣</span> Send data to SQLite API</div>
+    <div class="step-msg" id="s2-msg">Waiting…</div>
+  </div>
+  <div class="step" id="s3">
+    <div class="step-title"><span class="icon">3️⃣</span> Verify &amp; sync</div>
+    <div class="step-msg" id="s3-msg">Waiting…</div>
+  </div>
+
+  <button id="btn" onclick="runMigration()">▶ Start Migration</button>
+</div>
+
+<script>
+const API = 'http://localhost:4000/api';
+const DB_NAME = 'autoerp-db';
+const DB_VERSION = 7;
+const STORES = ['customers','partyGroups','products','inventory','sales',
+                'purchases','expenses','expenseCategories','reminders','users','settings'];
+
+function setStep(n, state, msg, counts) {
+  const el = document.getElementById(`s${n}`);
+  el.className = `step ${state}`;
+  document.getElementById(`s${n}-msg`).textContent = msg;
+  if (counts && document.getElementById(`s${n}-counts`)) {
+    document.getElementById(`s${n}-counts`).textContent = counts;
+  }
+}
+
+async function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+    req.onupgradeneeded = () => { /* already latest version */ };
+  });
+}
+
+async function readAllStores(idb) {
+  const data = {};
+  for (const store of STORES) {
+    if (!idb.objectStoreNames.contains(store)) { data[store] = []; continue; }
+    data[store] = await new Promise((resolve, reject) => {
+      const tx = idb.transaction(store, 'readonly');
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return data;
+}
+
+async function runMigration() {
+  document.getElementById('btn').disabled = true;
+
+  // Step 1: Read IndexedDB
+  setStep(1, 'active', 'Opening IndexedDB…');
+  let data;
+  try {
+    const idb = await openIDB();
+    data = await readAllStores(idb);
+    idb.close();
+    const summary = STORES.map(s => `${s}: ${data[s].length}`).join('  |  ');
+    setStep(1, 'done', 'All data read successfully.', summary);
+  } catch (e) {
+    setStep(1, 'error', `Error: ${e.message}`);
+    document.getElementById('btn').disabled = false;
+    return;
+  }
+
+  // Step 2: Send to SQLite API
+  setStep(2, 'active', 'Sending to SQLite server…');
+  try {
+    const res = await fetch(`${API}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setStep(2, 'done', 'Data imported into SQLite successfully.');
+  } catch (e) {
+    setStep(2, 'error', `Error: ${e.message}. Make sure the server is running: node server/index.js`);
+    document.getElementById('btn').disabled = false;
+    return;
+  }
+
+  // Step 3: Sync
+  setStep(3, 'active', 'Running forensic sync…');
+  try {
+    const res = await fetch(`${API}/sync`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setStep(3, 'done', '✅ Migration complete! You can close this page and use your app normally.');
+    document.getElementById('btn').textContent = '✅ Done!';
+  } catch (e) {
+    setStep(3, 'error', `Sync warning: ${e.message} — data is imported but balances may need recalculating.`);
+  }
+}
+</script>
+</body>
+</html>

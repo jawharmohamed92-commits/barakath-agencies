@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Times New Roman", Times, serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  /* High-Density Layout Overhaul & Modern Transparent Border System for BARAKATH AGENCIES */
+  table {
+    border: transparent !important;
+    border-collapse: collapse !important;
+    outline: none !important;
+  }
+
+  table tr {
+    /* Soft background-adaptive dividers for inner rows */
+    border-bottom: 0.5px solid rgba(156, 163, 175, 0.12) !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .dark table tr {
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  table td, table th {
+    vertical-align: middle !important;
+    display: table-cell;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    font-size: 11px !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 0.5px solid rgba(156, 163, 175, 0.12) !important;
+  }
+
+  .dark table td, .dark table th {
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  table td *, table th * {
+    font-size: 11px !important;
+  }
+
+  thead th {
+    @apply font-serif font-bold uppercase tracking-tight;
+    font-size: 11px !important;
+  }
+}
+
+/* Hide number input spinners */
+@layer base {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
