@@ -3,20 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-
   "engines": {
     "node": "20.x"
   },
-
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "server": "node server/index.js",
-    "start": "concurrently \"npm run dev\" \"npm run server\"",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
-  },
-
+  "dev": "vite --port=3000 --host=0.0.0.0",
+  "server": "node server/index.js",
+  "build": "vite build",
+  "start": "node server/index.js"
+},
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
@@ -39,11 +34,11 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.14.0",
     "recharts": "^3.8.1",
+    "serve": "^14.2.6",
     "tailwind-merge": "^3.5.0",
     "vite": "^6.2.0",
     "xlsx": "^0.18.5"
   },
-
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
